@@ -30,4 +30,4 @@ def configure_event_logging(ip, username, password, enable_password):
 elif choice == '6':
     configure_syslog(ip_address, username, password, enable_password)
     # Add logic to configure event logging if needed
-    # configure_event_logging(ip_address, username, password, enable_passwor
+    # configure_event_logging(ip_address, username, password, enable_password)
