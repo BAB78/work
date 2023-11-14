@@ -4,30 +4,23 @@ def configure_syslog(ip, username, password, enable_password):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(ip, username=username, password=password)
-        
-        # Send syslog configuration commands
+
+        # Command list to generate a 2048-bit RSA key for SSH
         command_list = [
             'configure terminal',
-            'logging <syslog_server_ip>',  # Replace <syslog_server_ip> with the actual syslog server IP
-            'logging trap <severity_level>',  # Set the severity level as needed
+            'crypto key generate rsa modulus 2048',  # Generating a 2048-bit RSA key
             'end',
             'write memory'
         ]
 
-        for command in command_list:
-            ssh.exec_command(command)
-        
-        ssh.close()
-        print(f"Syslog configured successfully on {ip}")
+        # Execute commands only if the SSH connection is active
+        if ssh.get_transport() is not None and ssh.get_transport().is_active():
+            for command in command_list:
+                ssh.exec_command(command)
+
+            ssh.close()
+            print(f"RSA key (2048-bit) generated successfully for SSH on {ip}")
+        else:
+            print("SSH connection is not active.")
     except Exception as e:
-        print(f"Failed to configure syslog: {e}")
-
-def configure_event_logging(ip, username, password, enable_password):
-    print("Placeholder for configure_event_logging function")
-    # Logic to configure event logging goes here
-
-# Update the display_menu function to call the configure_syslog function for option 6
-elif choice == '6':
-    configure_syslog(ip_address, username, password, enable_password)
-    # Add logic to configure event logging if needed
-    # configure_event_logging(ip_address, username, password, enable_password)
+        print(f"Failed to generate RSA key: {e}")
