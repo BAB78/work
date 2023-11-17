@@ -214,6 +214,9 @@ def compare_with_hardening_advice():
 
     else:
         print("Failed to retrieve the running configuration.")
+ 
+    for line in diff:
+        print(line)
 
 # Function to configure syslog
 def configure_syslog():
@@ -230,7 +233,7 @@ def configure_syslog():
         
         tn.write(b'configure terminal\n')
         tn.read_until(b'#', timeout=10)
-        tn.write(b'logging 192.168.56.101\n')  # Replace with your syslog server IP
+        tn.write(b'logging 192.168.56.1\n')  # Replace with your syslog server IP
         tn.read_until(b'#', timeout=10)
         tn.write(b'end\n')
         tn.read_until(b'#', timeout=10)
