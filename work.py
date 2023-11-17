@@ -1,4 +1,5 @@
 import paramiko
+import difflib
 import os
 
 # Define variables for the menu options
@@ -34,48 +35,120 @@ def telnet_connection():
 # Define a function for connecting to the device using SSH
 def ssh_connection():
     try:
-        ssh = paramiko.SSH(ip_address, username=username, password=password)
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ip_address, username=username, password=password)
         return ssh
     except Exception as e:
         print(f"Error connecting to {ip_address} via SSH: {e}")
 
-# Define a function for comparing the current running configuration with the startup configuration
-def compare_configurations():
+# Define a function for comparing configurations
+def compare_configurations(config1, config2):
+    diff = difflib.ndiff(config1.splitlines(), config2.splitlines())
+    return '\n'.join(diff)
+
+# Define a function to get the running configuration
+def get_running_configuration(connection):
     try:
-        running_config = get_running_configuration()
-        startup_config = get_startup_configuration()
-        diff = compare_configurations(running_config, startup_config)
-        print(diff)
+        if isinstance(connection, paramiko.Telnet):
+            connection.write(b"show running-config\n")
+            running_config = connection.read_very_eager().decode("utf-8")
+            return running_config
+        elif isinstance(connection, paramiko.SSHClient):
+            stdin, stdout, stderr = connection.exec_command("show running-config")
+            running_config = stdout.read().decode("utf-8")
+            return running_config
+        else:
+            return None
     except Exception as e:
-        print(f"Error comparing configurations: {e}")
+        print(f"Error getting running configuration: {e}")
+        return None
+
+# Define a function to get the startup configuration
+def get_startup_configuration(connection):
+    try:
+        if isinstance(connection, paramiko.Telnet):
+            connection.write(b"show startup-config\n")
+            startup_config = connection.read_very_eager().decode("utf-8")
+            return startup_config
+        elif isinstance(connection, paramiko.SSHClient):
+            stdin, stdout, stderr = connection.exec_command("show startup-config")
+            startup_config = stdout.read().decode("utf-8")
+            return startup_config
+        else:
+            return None
+    except Exception as e:
+        print(f"Error getting startup configuration: {e}")
+        return None
+
+# Define a function for comparing the current running configuration with the startup configuration
+def compare_with_startup_config():
+    telnet = telnet_connection()
+    ssh = ssh_connection()
+    running_config_telnet = get_running_configuration(telnet)
+    running_config_ssh = get_running_configuration(ssh)
+    startup_config_telnet = get_startup_configuration(telnet)
+    startup_config_ssh = get_startup_configuration(ssh)
+    
+    diff_telnet = compare_configurations(running_config_telnet, startup_config_telnet)
+    diff_ssh = compare_configurations(running_config_ssh, startup_config_ssh)
+
+    print("Telnet Comparison with Startup Configuration:")
+    print(diff_telnet)
+    print("\nSSH Comparison with Startup Configuration:")
+    print(diff_ssh)
 
 # Define a function for comparing the current running configuration with a local offline version
 def compare_with_local_offline_version():
     try:
-        running_config = get_running_configuration()
-        local_config = get_local_offline_configuration()
-        diff = compare_configurations(running_config, local_config)
-        print(diff)
+        with open("local_offline_config.txt", "r") as file:
+            local_config = file.read()
+
+        telnet = telnet_connection()
+        ssh = ssh_connection()
+        running_config_telnet = get_running_configuration(telnet)
+        running_config_ssh = get_running_configuration(ssh)
+
+        diff_telnet = compare_configurations(running_config_telnet, local_config)
+        diff_ssh = compare_configurations(running_config_ssh, local_config)
+
+        print("Telnet Comparison with Local Offline Version:")
+        print(diff_telnet)
+        print("\nSSH Comparison with Local Offline Version:")
+        print(diff_ssh)
     except Exception as e:
-        print(f"Error comparing configurations: {e}")
+        print(f"Error comparing with local offline version: {e}")
 
 # Define a function for comparing the current running configuration with Cisco device hardening advice
 def compare_with_hardening_advice():
     try:
-        running_config = get_running_configuration()
-        advice = read_hardening_advice(hardening_advice_file)
-        diff = compare_configurations(running_config, advice)
-        print(diff)
+        with open(hardening_advice_file, "r") as file:
+            advice = file.read()
+
+        telnet = telnet_connection()
+        ssh = ssh_connection()
+        running_config_telnet = get_running_configuration(telnet)
+        running_config_ssh = get_running_configuration(ssh)
+
+        diff_telnet = compare_configurations(running_config_telnet, advice)
+        diff_ssh = compare_configurations(running_config_ssh, advice)
+
+        print("Telnet Comparison with Hardening Advice:")
+        print(diff_telnet)
+        print("\nSSH Comparison with Hardening Advice:")
+        print(diff_ssh)
     except FileNotFoundError as e:
         print(f"Error reading hardening advice file: {e}")
     except Exception as e:
-        print(f"Error comparing configurations: {e}")
+        print(f"Error comparing with hardening advice: {e}")
 
 # Define a function for configuring syslog for event logging and monitoring
 def configure_syslog():
     try:
         syslog_server_ip = input("Enter the IP of the syslog server: ")
-        configure_syslog_server(syslog_server_ip)
+        ssh = ssh_connection()
+        stdin, stdout, stderr = ssh.exec_command(f"logging {syslog_server_ip}")
+        print("Syslog configuration completed successfully.")
     except Exception as e:
         print(f"Error configuring syslog: {e}")
 
@@ -97,3 +170,18 @@ def display_menu():
             telnet_connection()
         elif choice == option_2:
             ssh_connection()
+        elif choice == option_3:
+            compare_with_startup_config()
+        elif choice == option_4:
+            compare_with_local_offline_version()
+        elif choice == option_5:
+            compare_with_hardening_advice()
+        elif choice == option_6:
+            configure_syslog()
+        elif choice == option_7:
+            break
+        else:
+            print("Invalid choice. Please enter a number between 1 and 7.")
+
+# Main execution
+display_menu()
